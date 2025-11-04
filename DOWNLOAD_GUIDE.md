@@ -228,16 +228,9 @@ du -sh data/lidar/
 
 ## Alternative: streetget Tool
 
-For advanced users, consider using the [streetget](https://www.di.ens.fr/willow/research/streetget/) tool:
+For advanced users, consider using the [streetget](https://www.di.ens.fr/willow/research/streetget/) tool for downloading with depth information.
 
-```bash
-# Install streetget (external tool)
-# git clone https://github.com/some-repo/streetget
-# cd streetget && make
-
-# Download Street View with depth information
-streetget --lat 48.6439 --lon 1.8294 --radius 10 --output data/streetview/
-```
+Refer to the streetget documentation for installation and usage instructions.
 
 Benefits of streetget:
 - Downloads depth maps (3D information)
@@ -271,7 +264,7 @@ rm -rf data/streetview/*
 # Remove LiDAR data
 rm -rf data/lidar/*
 
-# Or use the directories are git-ignored, so git clean won't affect them
+# Note: The data directories are git-ignored, so git clean won't affect them
 ```
 
 ### Backup

@@ -242,7 +242,8 @@ class DataDownloader:
                 
                 # Check if point is within radius
                 dist_lat = abs(lat - center_lat) * 111.0
-                dist_lon = abs(lon - center_lon) * 111.0 * 0.7  # Approximate for latitude
+                # Approximate longitude distance using cos(latitude) ≈ 0.7 at mid-latitudes
+                dist_lon = abs(lon - center_lon) * 111.0 * 0.7
                 dist = (dist_lat**2 + dist_lon**2)**0.5
                 
                 if dist <= radius_km:

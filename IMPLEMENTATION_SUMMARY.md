@@ -180,7 +180,7 @@ pipeline.run(auto_download=False)  # Skip download
 3. `test_download.py` - Test suite
 4. `DOWNLOAD_GUIDE.md` - Comprehensive documentation
 
-### Modified (4 files)
+### Modified (5 files)
 1. `main.py` - Pipeline integration
 2. `config.yaml` - Added download configuration
 3. `README.md` - Documentation updates

@@ -184,8 +184,8 @@ def test_download_disabled():
     lidar_ok, streetview_ok = downloader.download_all()
     
     # When disabled, should return True (considered success)
-    assert lidar_ok == True
-    assert streetview_ok == True
+    assert lidar_ok
+    assert streetview_ok
     
     print("✓ Download disabled test passed")
     return True
