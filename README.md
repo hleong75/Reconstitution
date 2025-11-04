@@ -2,7 +2,7 @@
 
 Automatic 3D city reconstruction around Rambouillet (10km radius) using LiDAR HD IGN point clouds and Street View panoramic images.
 
-**🚀 [Quick Start Guide](QUICKSTART.md)** | **📖 [Documentation en Français](README_FR.md)**
+**🚀 [Quick Start Guide](QUICKSTART.md)** | **📖 [Documentation en Français](README_FR.md)** | **📥 [Download Guide](DOWNLOAD_GUIDE.md)**
 
 ## Overview
 
@@ -10,6 +10,7 @@ This pipeline uses AI-based segmentation to filter buildings and ground from LiD
 
 ## Features
 
+- **Automatic Data Download**: Download Street View images automatically using Google API
 - **LiDAR Processing**: Load and process .copc.laz point cloud files from IGN
 - **Street View Integration**: Use panoramic images for texture mapping
 - **AI Segmentation**: Deep learning-based point cloud segmentation (ground, buildings, vegetation)

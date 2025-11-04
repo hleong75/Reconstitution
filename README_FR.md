@@ -8,6 +8,7 @@ Ce pipeline utilise la segmentation basée sur l'IA pour filtrer les bâtiments 
 
 ## Fonctionnalités
 
+- **Téléchargement Automatique de Données** : Téléchargement automatique d'images Street View via l'API Google
 - **Traitement LiDAR** : Chargement et traitement des fichiers de nuages de points .copc.laz de l'IGN
 - **Intégration Street View** : Utilisation d'images panoramiques pour le mappage de textures
 - **Segmentation IA** : Segmentation de nuages de points basée sur l'apprentissage profond (sol, bâtiments, végétation)
@@ -230,6 +231,7 @@ Les poids pré-entraînés peuvent être placés dans `models/segmentation_weigh
 
 ## Documentation Supplémentaire
 
+- **DOWNLOAD_GUIDE.md** - Guide de téléchargement automatique (en anglais)
 - **USAGE.md** - Guide d'utilisation détaillé (en anglais)
 - **ARCHITECTURE.md** - Vue d'ensemble de l'architecture (en anglais)
 - **EXAMPLES.md** - Exemples de configurations (en anglais)
