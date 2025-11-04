@@ -2,7 +2,7 @@
 
 Automatic 3D city reconstruction around Rambouillet (10km radius) using LiDAR HD IGN point clouds and Street View panoramic images.
 
-**🚀 [Quick Start Guide](QUICKSTART.md)** | **📖 [Documentation en Français](README_FR.md)** | **📥 [Download Guide](DOWNLOAD_GUIDE.md)**
+**🚀 [Quick Start Guide](QUICKSTART.md)** | **📖 [Documentation en Français](README_FR.md)** | **📥 [Download Guide](DOWNLOAD_GUIDE.md)** | **🤖 [AI Texture Cleaning](AI_TEXTURE_CLEANING.md)**
 
 ## Overview
 
@@ -14,6 +14,7 @@ This pipeline uses AI-based segmentation to filter buildings and ground from LiD
 - **LiDAR Processing**: Load and process .copc.laz point cloud files from IGN
 - **Street View Integration**: Use panoramic images for texture mapping
 - **AI Segmentation**: Deep learning-based point cloud segmentation (ground, buildings, vegetation)
+- **AI Texture Cleaning**: Automatically remove temporary elements (cars, people) from textures using semantic segmentation
 - **3D Mesh Generation**: Multiple reconstruction algorithms (Poisson, Ball Pivoting, Alpha Shape)
 - **Texture Mapping**: Apply textures from Street View images to 3D models
 - **Multiple Export Formats**: .3ds, .obj, .ply, .stl
@@ -127,13 +128,24 @@ Street View Images ──────┘
 
 ## AI Model
 
-The pipeline uses a PointNet-based architecture for semantic segmentation with classes:
+The pipeline uses AI in two key areas:
+
+### Point Cloud Segmentation
+A PointNet-based architecture for semantic segmentation with classes:
 - Ground
 - Building
 - Vegetation
 - Other
 
 Pre-trained weights can be placed in `models/segmentation_weights.pth`.
+
+### Texture Cleaning (NEW!)
+AI-powered texture cleaning automatically removes temporary elements from Street View images:
+- **Detection**: Uses DeepLabV3 with MobileNetV3 backbone for semantic segmentation
+- **Removal**: Detects and removes cars, people, bicycles, and other transient objects
+- **Inpainting**: Intelligently fills in removed areas for clean, professional textures
+
+See **[AI Texture Cleaning Guide](AI_TEXTURE_CLEANING.md)** for detailed information.
 
 ## Requirements
 

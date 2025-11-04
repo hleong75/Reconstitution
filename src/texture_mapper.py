@@ -5,6 +5,7 @@ import cv2
 import open3d as o3d
 from typing import Dict, Any, List, Tuple
 import logging
+from src.ai_texture_cleaner import AITextureCleaner
 
 
 # Constants for image cleaning thresholds
@@ -35,6 +36,10 @@ class TextureMapper:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.texture_config = config['texture_mapping']
+        
+        # Initialize AI texture cleaner
+        self.ai_cleaner = AITextureCleaner(config)
+        self.use_ai_cleaning = self.texture_config.get('ai_cleaning', {}).get('enabled', True)
     
     def apply_textures(self, mesh: o3d.geometry.TriangleMesh, 
                        images: List[Dict[str, Any]]) -> o3d.geometry.TriangleMesh:
@@ -78,6 +83,7 @@ class TextureMapper:
     def _clean_images(self, images: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Clean images by removing temporary elements (cars, people, etc.)
+        Uses AI-based detection when enabled, falls back to traditional CV methods
         
         Args:
             images: List of image dictionaries
@@ -87,22 +93,36 @@ class TextureMapper:
         """
         self.logger.info(f"Cleaning {len(images)} images to remove temporary elements")
         
-        cleaned_images = []
-        for img_data in images:
-            if 'image' not in img_data:
-                continue
+        # Try AI-based cleaning first if enabled
+        if self.use_ai_cleaning and self.ai_cleaner.enabled:
+            self.logger.info("Using AI-based texture cleaning")
+            cleaned_images = self.ai_cleaner.batch_clean_images(images)
+            
+            # Log statistics
+            stats = self.ai_cleaner.get_statistics(images)
+            self.logger.info(f"AI cleaning stats: {stats['images_with_transients']}/{stats['total_images']} "
+                           f"images had transient objects ({stats['avg_transient_percentage']:.2f}% of pixels)")
+            
+            return cleaned_images
+        else:
+            # Fall back to traditional CV-based cleaning
+            self.logger.info("Using traditional CV-based texture cleaning")
+            cleaned_images = []
+            for img_data in images:
+                if 'image' not in img_data:
+                    continue
+                    
+                img = img_data['image'].copy()
                 
-            img = img_data['image'].copy()
+                # Apply intelligent filtering to remove temporary objects
+                cleaned_img = self._remove_temporary_elements(img)
+                
+                cleaned_data = img_data.copy()
+                cleaned_data['image'] = cleaned_img
+                cleaned_images.append(cleaned_data)
             
-            # Apply intelligent filtering to remove temporary objects
-            cleaned_img = self._remove_temporary_elements(img)
-            
-            cleaned_data = img_data.copy()
-            cleaned_data['image'] = cleaned_img
-            cleaned_images.append(cleaned_data)
-        
-        self.logger.info(f"Successfully cleaned {len(cleaned_images)} images")
-        return cleaned_images
+            self.logger.info(f"Successfully cleaned {len(cleaned_images)} images")
+            return cleaned_images
     
     def _remove_temporary_elements(self, image: np.ndarray) -> np.ndarray:
         """
