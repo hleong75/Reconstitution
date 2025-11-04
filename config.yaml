@@ -1,0 +1,67 @@
+# Configuration for 3D reconstruction around Rambouillet
+location:
+  name: "Rambouillet"
+  # Coordinates of Rambouillet center (latitude, longitude)
+  center_lat: 48.6439
+  center_lon: 1.8294
+  # Radius in kilometers
+  radius_km: 10
+
+input:
+  # LiDAR point cloud data
+  lidar:
+    format: "copc.laz"
+    path: "data/lidar/"
+    # Point cloud processing parameters
+    voxel_size: 0.05  # meters
+    min_points_per_voxel: 10
+  
+  # Street View panoramic images
+  streetview:
+    path: "data/streetview/"
+    format: ["jpg", "png"]
+    resolution: [2048, 1024]
+
+processing:
+  # AI model for segmentation
+  segmentation:
+    model: "pointnet"  # or "dgcnn", "randlanet"
+    weights_path: "models/segmentation_weights.pth"
+    classes:
+      - "ground"
+      - "building"
+      - "vegetation"
+      - "other"
+    confidence_threshold: 0.7
+  
+  # Ground filtering
+  ground_filter:
+    method: "cloth_simulation"  # CSF algorithm
+    rigidness: 3
+    class_threshold: 0.5
+  
+  # Building extraction
+  building_extraction:
+    min_height: 2.5  # meters
+    min_points: 100
+    cluster_tolerance: 0.5
+
+mesh_generation:
+  method: "poisson"  # or "ball_pivoting", "alpha_shape"
+  poisson_depth: 9
+  poisson_scale: 1.1
+  simplification_ratio: 0.9
+  
+texture_mapping:
+  method: "projection"
+  resolution: 2048
+  use_streetview: true
+  interpolation: "bilinear"
+
+output:
+  format: "3ds"
+  path: "output/"
+  filename: "rambouillet_3d_model"
+  include_materials: true
+  coordinate_system: "WGS84"
+  export_lod: [1, 2, 3]  # Level of detail variations
