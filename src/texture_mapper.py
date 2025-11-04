@@ -12,6 +12,15 @@ GROUND_LEVEL_THRESHOLD = 0.4  # Top 40% of image is sky/buildings, bottom 60% is
 VERTICAL_FOCUS_THRESHOLD = 0.5  # Focus on bottom 50% for vertical objects
 BLUR_PERCENTILE_THRESHOLD = 25  # Lower 25% variance indicates blur
 
+# Brightness and saturation thresholds for reflective surface detection
+BRIGHTNESS_THRESHOLD = 200  # High brightness indicates reflective surfaces
+LOW_SATURATION_THRESHOLD = 50  # Low saturation with high brightness = metallic
+EDGE_VARIANCE_THRESHOLD = 30  # High local variance indicates reflections/edges
+
+# Edge detection thresholds
+VERTICAL_EDGE_THRESHOLD = 50  # Minimum edge strength for vertical objects
+VERTICAL_EDGE_RATIO = 1.5  # Ratio of x-gradient to y-gradient for vertical edges
+
 
 class TextureMapper:
     """Apply textures to 3D meshes from Street View images with intelligent cleanup"""
@@ -160,11 +169,11 @@ class TextureMapper:
         s_channel = hsv[:, :, 1]
         
         # Detect very bright areas with low saturation (metallic/glass reflections)
-        bright_low_sat = (v_channel > 200) & (s_channel < 50)
+        bright_low_sat = (v_channel > BRIGHTNESS_THRESHOLD) & (s_channel < LOW_SATURATION_THRESHOLD)
         
         # Detect high local variance (indicates reflections)
         local_std = cv2.Laplacian(gray, cv2.CV_64F)
-        high_variance = np.abs(local_std) > 30
+        high_variance = np.abs(local_std) > EDGE_VARIANCE_THRESHOLD
         
         # Combine conditions
         mask[bright_low_sat & high_variance] = 255
@@ -190,11 +199,11 @@ class TextureMapper:
         sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
         
         # Vertical edges are stronger in x direction
-        vertical_edges = np.abs(sobelx) > np.abs(sobely) * 1.5
+        vertical_edges = np.abs(sobelx) > np.abs(sobely) * VERTICAL_EDGE_RATIO
         
         # Apply threshold
         edge_strength = np.abs(sobelx)
-        strong_vertical = (edge_strength > 50) & vertical_edges
+        strong_vertical = (edge_strength > VERTICAL_EDGE_THRESHOLD) & vertical_edges
         
         mask = np.zeros_like(gray, dtype=np.uint8)
         mask[strong_vertical] = 255

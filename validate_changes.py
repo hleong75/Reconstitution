@@ -42,6 +42,10 @@ def test_main_py_structure():
     return True
 
 
+# Constants
+API_KEY_PREFIX_SEARCH_LENGTH = 10  # Characters to search before 'google_api_key' for comment marker
+
+
 def test_config_yaml():
     """Verify config.yaml has API disabled"""
     print("Testing config.yaml...")
@@ -57,8 +61,8 @@ def test_config_yaml():
         
         # Find the line with google_api_key
         api_key_pos = content.find('google_api_key')
-        # Check if it's commented (# appears in the 10 characters before it)
-        prefix = content[max(0, api_key_pos - 10):api_key_pos]
+        # Check if it's commented (# appears in the characters before it)
+        prefix = content[max(0, api_key_pos - API_KEY_PREFIX_SEARCH_LENGTH):api_key_pos]
         return '#' in prefix
     
     assert is_api_key_disabled(), "google_api_key should be removed or commented"
