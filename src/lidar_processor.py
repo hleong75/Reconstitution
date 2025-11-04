@@ -26,29 +26,49 @@ class LiDARProcessor:
     def load_and_process(self) -> o3d.geometry.PointCloud:
         """
         Load and process all LiDAR files in the input directory
+        Supports multiple formats: .laz, .copc.laz, .las, .ply, .pcd
         
         Returns:
             Merged and processed point cloud
         """
         lidar_path = Path(self.lidar_config['path'])
-        laz_files = list(lidar_path.glob(f"*.{self.lidar_config['format']}"))
         
-        if not laz_files:
-            self.logger.warning(f"No .{self.lidar_config['format']} files found in {lidar_path}")
+        # Support multiple file formats
+        supported_formats = ['laz', 'las', 'ply', 'pcd']
+        point_cloud_files = []
+        
+        # Get configured format first
+        config_format = self.lidar_config.get('format', 'copc.laz')
+        for fmt in [config_format] + supported_formats:
+            files = list(lidar_path.glob(f"*.{fmt}"))
+            point_cloud_files.extend(files)
+        
+        # Remove duplicates
+        point_cloud_files = list(set(point_cloud_files))
+        
+        if not point_cloud_files:
+            self.logger.warning(f"No point cloud files found in {lidar_path}")
+            self.logger.info(f"Supported formats: {', '.join(supported_formats)}")
             # Return empty point cloud for testing
             return o3d.geometry.PointCloud()
         
-        self.logger.info(f"Found {len(laz_files)} LiDAR files")
+        self.logger.info(f"Found {len(point_cloud_files)} point cloud files")
         
         all_points = []
         all_colors = []
         
-        for laz_file in laz_files:
-            self.logger.info(f"Processing {laz_file.name}")
-            points, colors = self._load_laz_file(laz_file)
-            all_points.append(points)
-            if colors is not None:
-                all_colors.append(colors)
+        for pc_file in point_cloud_files:
+            self.logger.info(f"Processing {pc_file.name}")
+            points, colors = self._load_point_cloud_file(pc_file)
+            if points is not None and len(points) > 0:
+                all_points.append(points)
+                if colors is not None:
+                    all_colors.append(colors)
+        
+        # Check if we loaded any valid data
+        if not all_points:
+            self.logger.warning("No valid point cloud data could be loaded")
+            return o3d.geometry.PointCloud()
         
         # Merge all point clouds
         merged_points = np.vstack(all_points)
@@ -76,12 +96,41 @@ class LiDARProcessor:
         
         return pcd
     
-    def _load_laz_file(self, file_path: Path) -> tuple:
+    def _load_point_cloud_file(self, file_path: Path) -> tuple:
         """
-        Load a single LAZ file
+        Load a point cloud file (supports LAZ, LAS, PLY, PCD formats)
         
         Args:
-            file_path: Path to LAZ file
+            file_path: Path to point cloud file
+            
+        Returns:
+            Tuple of (points, colors) as numpy arrays
+        """
+        try:
+            file_ext = file_path.suffix.lower()
+            
+            # Handle LAZ/LAS files with laspy
+            if file_ext in ['.laz', '.las']:
+                return self._load_laz_file(file_path)
+            
+            # Handle PLY/PCD files with Open3D
+            elif file_ext in ['.ply', '.pcd']:
+                return self._load_open3d_file(file_path)
+            
+            else:
+                self.logger.warning(f"Unsupported file format: {file_ext}")
+                return None, None
+                
+        except Exception as e:
+            self.logger.error(f"Error loading {file_path}: {str(e)}")
+            return None, None
+    
+    def _load_laz_file(self, file_path: Path) -> tuple:
+        """
+        Load a LAZ/LAS file using laspy
+        
+        Args:
+            file_path: Path to LAZ/LAS file
             
         Returns:
             Tuple of (points, colors)
@@ -102,7 +151,34 @@ class LiDARProcessor:
             return points, colors
             
         except Exception as e:
-            self.logger.error(f"Error loading {file_path}: {str(e)}")
+            self.logger.error(f"Error loading LAZ/LAS file {file_path}: {str(e)}")
+            raise
+    
+    def _load_open3d_file(self, file_path: Path) -> tuple:
+        """
+        Load PLY/PCD file using Open3D
+        
+        Args:
+            file_path: Path to PLY/PCD file
+            
+        Returns:
+            Tuple of (points, colors)
+        """
+        try:
+            pcd = o3d.io.read_point_cloud(str(file_path))
+            
+            # Extract points
+            points = np.asarray(pcd.points)
+            
+            # Extract colors if available
+            colors = None
+            if pcd.has_colors():
+                colors = np.asarray(pcd.colors)
+            
+            return points, colors
+            
+        except Exception as e:
+            self.logger.error(f"Error loading Open3D file {file_path}: {str(e)}")
             raise
     
     def _filter_by_location(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
