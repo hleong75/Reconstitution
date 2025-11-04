@@ -36,47 +36,59 @@ python setup.py
 
 ## Préparation des Données
 
-### Option 1: Téléchargement Automatique (Recommandé)
+### Option 1: Téléchargement Automatique
 
-Configurez le téléchargement automatique des données :
+Le pipeline peut tenter de télécharger automatiquement les données, mais **le téléchargement manuel est recommandé** pour le LiDAR en raison des restrictions d'accès :
+
 ```bash
-python setup_download.py config
+# Configurer les paramètres de téléchargement
+python download.py info                 # Afficher les sources de données
+python download.py setup-mapillary      # Configurer Mapillary pour Street View
+python download.py test                 # Tester la configuration
+python download.py now                  # Tenter le téléchargement
 ```
 
-Cela vous guidera pour configurer :
-- Clé API Google Street View pour le téléchargement automatique d'images
-- Préférences de téléchargement (nombre d'images, résolution)
+**Notes importantes :**
+- **LiDAR** : Le téléchargement automatique échoue souvent en raison de restrictions réseau. Le téléchargement manuel depuis l'IGN est recommandé.
+- **Street View** : Nécessite un jeton API Mapillary gratuit pour le téléchargement automatique.
 
-Ensuite, exécutez le pipeline - il téléchargera automatiquement les données :
-```bash
-python main.py
-```
-
-### Option 2: Téléchargement Manuel
+### Option 2: Téléchargement Manuel (Recommandé pour LiDAR)
 
 #### Données LiDAR
-Placez vos fichiers .copc.laz dans le répertoire `data/lidar/` :
+
+Téléchargez depuis le Géoportail IGN :
+
+1. Visitez [IGN Géoportail - LiDAR HD](https://geoservices.ign.fr/lidarhd) ou [IGN Geoplateforme](https://data.geopf.fr/)
+2. Recherchez votre localisation (par ex., "Rambouillet")
+3. Téléchargez les fichiers `.copc.laz` pour votre zone
+4. Placez les fichiers dans le répertoire `data/lidar/`
+
 ```bash
 mkdir -p data/lidar
-# Copiez vos fichiers LiDAR ici
+# Placez vos fichiers .copc.laz ici
 ```
 
 **Sources de données LiDAR HD IGN :**
 - [IGN Géoportail - LiDAR HD](https://geoservices.ign.fr/lidarhd)
+- [IGN Geoplateforme](https://data.geopf.fr/) (nouvelle plateforme 2024)
 - Format : Cloud Optimized Point Cloud (COPC) .laz
 - Système de coordonnées : Lambert 93
 
-### Images Street View
+#### Images Street View
 
-**Option A: Téléchargement Automatique**
+**Option A: Automatique avec Mapillary (Gratuit)**
 ```bash
-# Configurez d'abord la clé API
-python setup_download.py config
-# Puis exécutez main.py - il téléchargera automatiquement
+# Obtenez un jeton API gratuit sur https://www.mapillary.com/developer
+python download.py setup-mapillary
+python download.py now
 ```
 
-**Option B: Téléchargement Manuel**
+**Option B: Manuel**
 Placez vos images panoramiques dans le répertoire `data/streetview/` :
+```bash
+mkdir -p data/streetview
+# Copiez vos images panoramiques ici
+```
 ```bash
 mkdir -p data/streetview
 # Copiez vos images panoramiques ici

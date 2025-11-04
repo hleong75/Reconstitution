@@ -33,46 +33,52 @@ pip install -r requirements.txt
 
 ## Data Preparation
 
-### Option 1: Automatic Download (Recommended)
+### Option 1: Automatic Download
 
-Configure automatic data download:
+The pipeline can attempt to automatically download data, but **manual download is recommended** for LiDAR due to access restrictions:
+
 ```bash
-python setup_download.py config
+# Configure download settings
+python download.py info          # Show data sources
+python download.py setup-mapillary  # Setup Mapillary for street view
+python download.py test          # Test configuration
+python download.py now           # Attempt download
 ```
 
-This will guide you through setting up:
-- Google Street View API key for automatic image download
-- Download preferences (number of images, resolution)
+**Important Notes:**
+- **LiDAR**: Automatic download often fails due to network restrictions. Manual download from IGN is recommended.
+- **Street View**: Requires free Mapillary API token for automatic download.
 
-Then run the pipeline - it will automatically download data:
-```bash
-python main.py
-```
-
-### Option 2: Manual Download
+### Option 2: Manual Download (Recommended for LiDAR)
 
 #### LiDAR Data
-Place your .copc.laz files in the `data/lidar/` directory:
+
+Download from IGN Géoportail:
+
+1. Visit [IGN Géoportail - LiDAR HD](https://geoservices.ign.fr/lidarhd) or [IGN Geoplateforme](https://data.geopf.fr/)
+2. Search for your location (e.g., "Rambouillet")
+3. Download `.copc.laz` files for your area
+4. Place files in `data/lidar/` directory
+
 ```bash
 mkdir -p data/lidar
-# Copy your LiDAR files here
+# Place your .copc.laz files here
 ```
 
-### Street View Images
+#### Street View Images
 
-**Option A: Automatic Download**
+**Option A: Automatic with Mapillary (Free)**
 ```bash
-# Configure API key first
-python setup_download.py config
-# Then run main.py - it will download automatically
+# Get free API token from https://www.mapillary.com/developer
+python download.py setup-mapillary
+python download.py now
 ```
 
-**Option B: Manual Download**
-Place your panoramic images in the `data/streetview/` directory:
+**Option B: Manual**
+Place your panoramic images in `data/streetview/` directory:
 ```bash
 mkdir -p data/streetview
 # Copy your panoramic images here
-# Or use tools like streetget: https://www.di.ens.fr/willow/research/streetget/
 ```
 
 ## Configuration
