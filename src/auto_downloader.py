@@ -17,6 +17,24 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
+# Configuration constants
+IGN_TILE_SIZE_KM = 1.0  # IGN LiDAR tiles are 1km x 1km
+TILE_SIZE_METERS = 1000  # Tile size in meters for coordinate conversion
+TILE_GRID_PADDING = 1  # Additional tiles to check beyond calculated radius
+MAX_FAILED_ATTEMPTS = 10  # Stop searching after this many consecutive failures
+ATTEMPT_MULTIPLIER = 3  # Try this many times the desired tile count
+REQUEST_DELAY_SECONDS = 0.5  # Delay between requests to avoid hammering server
+
+# Approximate coordinate conversion constants (for fallback when pyproj unavailable)
+# These are rough approximations for France only and should not be used for precise work
+# Based on approximate center of France (lon ~2.5°E, lat ~46.5°N)
+LAMBERT93_APPROX_TILE_X_OFFSET = 600  # Approximate X tile offset
+LAMBERT93_APPROX_TILE_Y_OFFSET = 6800  # Approximate Y tile offset
+LAMBERT93_APPROX_LON_REF = 2.5  # Reference longitude for approximation (degrees)
+LAMBERT93_APPROX_LAT_REF = 46.5  # Reference latitude for approximation (degrees)
+LAMBERT93_APPROX_LON_SCALE = 100  # Tile offset per degree longitude (rough)
+LAMBERT93_APPROX_LAT_SCALE = 110  # Tile offset per degree latitude (rough)
+
 
 class IGNLidarDownloader:
     """
@@ -44,7 +62,7 @@ class IGNLidarDownloader:
         lat = self.location['center_lat']
         lon = self.location['center_lon']
         
-        logger.info(f"Downloading IGN LiDAR HD data for {lat}, {lon}")
+        logger.info(f"Attempting to download IGN LiDAR HD data for {lat}, {lon}")
         
         # Convert WGS84 to Lambert 93 to find tile names
         try:
@@ -53,48 +71,97 @@ class IGNLidarDownloader:
             x_lambert, y_lambert = transformer.transform(lon, lat)
             
             # IGN tiles are 1km x 1km, named by lower-left corner in km
-            tile_x = int(x_lambert / 1000)
-            tile_y = int(y_lambert / 1000)
+            tile_x = int(x_lambert / TILE_SIZE_METERS)
+            tile_y = int(y_lambert / TILE_SIZE_METERS)
             
             logger.info(f"Lambert 93 coordinates: X={x_lambert:.2f}, Y={y_lambert:.2f}")
             logger.info(f"Tile coordinates: X={tile_x}, Y={tile_y}")
             
         except ImportError:
             logger.warning("pyproj not installed, using approximate coordinates")
-            # Rough approximation for France
-            tile_x = 600 + int((lon - 2.5) * 100)
-            tile_y = 6800 + int((lat - 46.5) * 110)
+            logger.warning("Install pyproj for accurate coordinate conversion: pip install pyproj")
+            # Rough approximation for France (NOT accurate for precise work)
+            tile_x = LAMBERT93_APPROX_TILE_X_OFFSET + int((lon - LAMBERT93_APPROX_LON_REF) * LAMBERT93_APPROX_LON_SCALE)
+            tile_y = LAMBERT93_APPROX_TILE_Y_OFFSET + int((lat - LAMBERT93_APPROX_LAT_REF) * LAMBERT93_APPROX_LAT_SCALE)
+        except Exception as e:
+            logger.error(f"Error converting coordinates: {e}")
+            logger.warning("Using approximate coordinates")
+            tile_x = LAMBERT93_APPROX_TILE_X_OFFSET + int((lon - LAMBERT93_APPROX_LON_REF) * LAMBERT93_APPROX_LON_SCALE)
+            tile_y = LAMBERT93_APPROX_TILE_Y_OFFSET + int((lat - LAMBERT93_APPROX_LAT_REF) * LAMBERT93_APPROX_LAT_SCALE)
         
         # Try to download tiles in the area
         radius_km = self.location.get('radius_km', 10)
         tiles_downloaded = 0
+        tiles_attempted = 0
         
         # Calculate number of tiles needed
         # Get max tiles from config, default to 5 for safety
         max_tiles = self.config.get('download', {}).get('max_lidar_tiles', 5)
-        tiles_per_side = max(1, int(radius_km / 1.0) + 1)
+        tiles_per_side = min(max_tiles, max(1, int(radius_km / IGN_TILE_SIZE_KM)))
         
+        logger.info(f"Searching for LiDAR tiles in {radius_km}km radius (max {max_tiles} tiles)...")
+        
+        # Try tiles in a spiral pattern starting from center
+        # This is more efficient than a full grid
+        tiles_to_try = []
         for dx in range(-tiles_per_side, tiles_per_side + 1):
             for dy in range(-tiles_per_side, tiles_per_side + 1):
-                tx = tile_x + dx
-                ty = tile_y + dy
+                # Calculate distance from center
+                dist = (dx*dx + dy*dy) ** 0.5
+                tiles_to_try.append((dist, dx, dy))
+        
+        # Sort by distance so we try closest tiles first
+        tiles_to_try.sort()
+        
+        # Limit number of attempts to avoid excessive waiting
+        max_attempts = min(max_tiles * ATTEMPT_MULTIPLIER, len(tiles_to_try))
+        
+        for dist, dx, dy in tiles_to_try[:max_attempts]:
+            tx = tile_x + dx
+            ty = tile_y + dy
+            
+            tiles_attempted += 1
+            success = self._download_tile(tx, ty, output_dir)
+            if success:
+                tiles_downloaded += 1
+                logger.info(f"Progress: {tiles_downloaded}/{max_tiles} tiles downloaded")
                 
-                success = self._download_tile(tx, ty, output_dir)
-                if success:
-                    tiles_downloaded += 1
-                    
-                # Don't hammer the server
-                time.sleep(1)
-                
-                # Limit downloads based on config
-                if tiles_downloaded >= max_tiles:
-                    logger.info(f"Downloaded {max_tiles} tiles (max configured)")
-                    break
+            # Small delay to avoid hammering the server
+            if tiles_attempted < max_attempts:
+                time.sleep(REQUEST_DELAY_SECONDS)
+            
+            # Stop if we have enough tiles
             if tiles_downloaded >= max_tiles:
+                logger.info(f"✓ Downloaded {max_tiles} tiles (max configured)")
+                break
+            
+            # Early exit if many consecutive failures
+            if tiles_attempted >= MAX_FAILED_ATTEMPTS and tiles_downloaded == 0:
+                logger.warning(f"No tiles found after {tiles_attempted} attempts, stopping search")
                 break
         
-        logger.info(f"Downloaded {tiles_downloaded} LiDAR tiles")
-        return tiles_downloaded > 0
+        if tiles_downloaded > 0:
+            logger.info(f"✓ Successfully downloaded {tiles_downloaded} LiDAR tile(s)")
+            return True
+        else:
+            logger.warning("✗ Could not download any LiDAR tiles automatically")
+            logger.warning(f"Attempted {tiles_attempted} tile locations but none were accessible")
+            logger.warning("")
+            logger.warning("This may be due to:")
+            logger.warning("  1. Network restrictions or firewall blocking IGN servers")
+            logger.warning("  2. IGN API changes or service unavailability")
+            logger.warning("  3. Tiles not available for this specific location")
+            logger.warning("  4. Authentication required for IGN data access")
+            logger.warning("")
+            logger.warning("MANUAL DOWNLOAD RECOMMENDED:")
+            logger.warning(f"  1. Visit: https://geoservices.ign.fr/lidarhd")
+            logger.warning(f"  2. Search for location: {self.location.get('name', 'your area')}")
+            logger.warning(f"  3. Coordinates: {lat}, {lon}")
+            logger.warning(f"  4. Download .copc.laz files covering your area")
+            logger.warning(f"  5. Place files in: {output_dir}")
+            logger.warning("")
+            logger.warning("Alternative: Use IGN Geoplateforme at https://data.geopf.fr/")
+            return False
     
     def _download_tile(self, x: int, y: int, output_dir: Path) -> bool:
         """
@@ -102,16 +169,23 @@ class IGNLidarDownloader:
         
         IGN provides public access to LiDAR HD data through their download service
         The data is organized by department and tile coordinates
+        
+        Note: As of 2024, IGN data is available through:
+        - https://geoservices.ign.fr/lidarhd (web portal - manual download)
+        - https://data.geopf.fr/ (new platform with API access)
         """
         # IGN LiDAR HD file naming pattern
         # Example: LHD_FXX_0600_6830_PTS_C_LAMB93_IGN69.copc.laz
         
         # Try different possible URLs and formats
+        # Note: These URLs may require authentication or may not be publicly accessible
         possible_urls = [
-            # Public LIDAR HD download service (if available)
+            # New IGN Geoplateforme (as of 2024)
+            f"https://data.geopf.fr/telechargement/download/LIDARHD/LIDARHD_1-0_LAZ_{x:04d}_{y:04d}/LHD_FXX_{x:04d}_{y:04d}_PTS_C_LAMB93_IGN69.copc.laz",
+            # Legacy public LIDAR HD download service
             f"https://download.ign.fr/pub/LIDARHD/LHD_FXX_{x:04d}_{y:04d}_PTS_C_LAMB93_IGN69.copc.laz",
-            # Alternative URL patterns
-            f"https://storage.sbg.cloud.ovh.net/v1/AUTH_63234f509b4b4b0488a9f2b6dfa5aea5/IGNF/LIDAR/LHD_FXX_{x:04d}_{y:04d}_PTS_C_LAMB93_IGN69.copc.laz",
+            # Alternative cloud storage
+            f"https://storage.gra.cloud.ovh.net/v1/AUTH_63234f509b4b4b0488a9f2b6dfa5aea5/IGNF/LIDARHD_1-0_LAZ_{x:04d}_{y:04d}/LHD_FXX_{x:04d}_{y:04d}_PTS_C_LAMB93_IGN69.copc.laz",
         ]
         
         filename = f"LHD_FXX_{x:04d}_{y:04d}_PTS_C_LAMB93_IGN69.copc.laz"
@@ -122,29 +196,45 @@ class IGNLidarDownloader:
             logger.info(f"Tile {filename} already exists")
             return True
         
-        for url in possible_urls:
+        for i, url in enumerate(possible_urls):
             try:
-                logger.info(f"Trying to download from {url[:50]}...")
-                response = requests.head(url, timeout=10)
+                logger.debug(f"Attempting URL {i+1}/{len(possible_urls)}: {url[:80]}...")
+                response = requests.head(url, timeout=10, allow_redirects=True)
                 
                 if response.status_code == 200:
                     # File exists, download it
-                    logger.info(f"Downloading {filename}...")
+                    logger.info(f"Downloading {filename} from source {i+1}...")
                     response = requests.get(url, stream=True, timeout=300)
                     response.raise_for_status()
+                    
+                    # Download with progress indication
+                    total_size = int(response.headers.get('content-length', 0))
+                    downloaded = 0
                     
                     with open(output_file, 'wb') as f:
                         for chunk in response.iter_content(chunk_size=1024*1024):
                             f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                progress = (downloaded / total_size) * 100
+                                logger.debug(f"Download progress: {progress:.1f}%")
                     
-                    logger.info(f"Successfully downloaded {filename}")
+                    logger.info(f"Successfully downloaded {filename} ({downloaded / (1024*1024):.1f} MB)")
                     return True
+                elif response.status_code == 404:
+                    logger.debug(f"Tile not found at URL {i+1} (404)")
+                else:
+                    logger.debug(f"URL {i+1} returned status {response.status_code}")
                     
+            except requests.exceptions.ConnectionError as e:
+                logger.debug(f"Connection error for URL {i+1}: Network unreachable or DNS resolution failed")
+            except requests.exceptions.Timeout as e:
+                logger.debug(f"Timeout for URL {i+1}: Request took too long")
             except Exception as e:
-                logger.debug(f"Failed to download from {url}: {e}")
+                logger.debug(f"Failed to download from URL {i+1}: {type(e).__name__}: {str(e)[:100]}")
                 continue
         
-        logger.warning(f"Could not download tile {x:04d}_{y:04d}")
+        logger.debug(f"Could not download tile {x:04d}_{y:04d} from any source")
         return False
 
 
@@ -327,18 +417,37 @@ class AutoDownloader:
     
     def print_manual_instructions(self):
         """Print instructions for manual download if automatic fails"""
-        logger.info("\n=== Manual Download Instructions ===")
-        logger.info("\nIf automatic download fails, you can manually download data:")
+        logger.info("\n" + "="*70)
+        logger.info("=== Manual Download Instructions ===")
+        logger.info("="*70)
+        logger.info("\nAutomatic download failed. Please download data manually:")
         
-        logger.info("\n1. LiDAR HD Data:")
-        logger.info("   Visit: https://geoservices.ign.fr/lidarhd")
-        logger.info(f"   Location: {self.config['location']['name']}")
-        logger.info(f"   Coordinates: {self.config['location']['center_lat']}, {self.config['location']['center_lon']}")
-        logger.info(f"   Place .copc.laz files in: {self.config['input']['lidar']['path']}")
+        logger.info("\n1. LiDAR HD Data (IGN - France):")
+        logger.info("   Option A - IGN Geoservices (Recommended):")
+        logger.info("     a. Visit: https://geoservices.ign.fr/lidarhd")
+        logger.info(f"     b. Search for: {self.config['location']['name']}")
+        logger.info(f"     c. Coordinates: {self.config['location']['center_lat']}, {self.config['location']['center_lon']}")
+        logger.info("     d. Download .copc.laz or .laz files for your area")
+        logger.info(f"     e. Place files in: {self.config['input']['lidar']['path']}")
+        logger.info("")
+        logger.info("   Option B - IGN Geoplateforme (New Platform):")
+        logger.info("     a. Visit: https://data.geopf.fr/")
+        logger.info("     b. Browse LIDARHD dataset")
+        logger.info("     c. Select tiles covering your area")
+        logger.info(f"     d. Place downloaded files in: {self.config['input']['lidar']['path']}")
+        logger.info("")
+        logger.info("   Note: IGN LiDAR HD covers France territory with high-density")
+        logger.info("         point clouds (10+ points/m²). Files are typically 1-5 GB per tile.")
         
-        logger.info("\n2. Street View Images:")
-        logger.info("   Option A - Mapillary (Free):")
-        logger.info("     1. Get API token: https://www.mapillary.com/developer")
-        logger.info("     2. Add to config.yaml: download.mapillary_token")
+        logger.info("\n2. Street View Images (Mapillary - Worldwide):")
+        logger.info("   Option A - Mapillary (Free API):")
+        logger.info("     1. Get free API token: https://www.mapillary.com/developer")
+        logger.info("     2. Add to config.yaml: download.mapillary_token: 'YOUR_TOKEN'")
+        logger.info("     3. Run: python download.py now")
+        logger.info("")
         logger.info("   Option B - Manual Collection:")
-        logger.info(f"     Place JPG images in: {self.config['input']['streetview']['path']}")
+        logger.info("     1. Take your own photos or find openly licensed images")
+        logger.info("     2. Save as JPG files")
+        logger.info(f"     3. Place in: {self.config['input']['streetview']['path']}")
+        logger.info("")
+        logger.info("="*70 + "\n")

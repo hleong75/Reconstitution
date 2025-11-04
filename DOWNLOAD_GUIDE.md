@@ -68,23 +68,52 @@ download:
 ### Current Status
 
 Automatic LiDAR download is **limited** due to:
-- IGN's data distribution requires authentication
+- IGN's data distribution system has changed and now requires different access methods
+- Network restrictions may block access to IGN servers
+- Some tiles may require authentication or API keys
 - Large file sizes (hundreds of MB to GB per tile)
-- Complex tile selection logic
+
+The automatic download will attempt to download LiDAR tiles but will likely fail in most environments. When it fails, detailed manual instructions are provided.
 
 ### Recommended: Manual Download
 
+**Option A: IGN Geoservices (Traditional Portal)**
+
 1. Visit [IGN LiDAR HD](https://geoservices.ign.fr/lidarhd)
-2. Navigate to your area of interest
-3. Download `.copc.laz` files
-4. Place files in `data/lidar/` directory
+2. Search for your location (e.g., "Rambouillet")
+3. Navigate to your area of interest on the map
+4. Download `.copc.laz` or `.laz` files for your area
+5. Place files in `data/lidar/` directory
+
+**Option B: IGN Geoplateforme (New Platform - 2024)**
+
+1. Visit [IGN Geoplateforme](https://data.geopf.fr/)
+2. Browse or search for "LIDARHD" dataset
+3. Select the tiles covering your area of interest
+4. Download the files
+5. Place files in `data/lidar/` directory
+
+### File Naming Convention
+
+IGN LiDAR HD tiles follow this naming pattern:
+- Format: `LHD_FXX_XXXX_YYYY_PTS_C_LAMB93_IGN69.copc.laz`
+- XXXX: X coordinate in Lambert 93 (km)
+- YYYY: Y coordinate in Lambert 93 (km)
+- Each tile covers 1km x 1km area
+
+### Tile Coordinates for Rambouillet
+
+For reference, Rambouillet (48.6439°N, 1.8294°E) corresponds to:
+- Lambert 93 coordinates: approximately X=613761m, Y=6838830m
+- Tile coordinates: X=613, Y=6838
+- Neighboring tiles would be 612-614 (X) and 6837-6839 (Y)
 
 ### Future Enhancement
 
-Automatic LiDAR download will be improved in future releases to support:
-- IGN API authentication
-- Automatic tile selection based on coordinates
-- Parallel downloads for large areas
+Automatic LiDAR download may be improved in future releases if:
+- IGN provides a stable public API endpoint
+- API authentication methods are documented and accessible
+- Network access to IGN servers is available
 
 ## Download Configuration Reference
 
@@ -147,6 +176,45 @@ Example costs:
 **Tip:** Start with 50-100 images for initial testing.
 
 ## Troubleshooting
+
+### LiDAR Download Issues
+
+#### "Could not download any LiDAR tiles automatically"
+
+**Common Causes:**
+1. Network restrictions blocking access to IGN servers
+2. IGN API changes or service unavailability  
+3. Tiles not available for the specific location
+4. Authentication required for data access
+
+**Solutions:**
+- Follow the manual download instructions provided by the tool
+- Visit https://geoservices.ign.fr/lidarhd directly
+- Use the new IGN Geoplateforme at https://data.geopf.fr/
+- Check if your coordinates are within France (IGN only covers France)
+
+#### "pyproj not installed" warning
+
+**Cause:** The pyproj library is not installed
+
+**Impact:** The tool will use approximate coordinate conversion which may be less accurate
+
+**Solution:**
+```bash
+pip install pyproj
+```
+
+#### "Network unreachable or DNS resolution failed"
+
+**Cause:** Cannot connect to IGN servers from your network
+
+**Solutions:**
+- Check your internet connection
+- Try from a different network
+- Use manual download method
+- Contact your network administrator about firewall rules
+
+### Street View Download Issues
 
 ### "Google API key not configured"
 
