@@ -88,10 +88,6 @@ Placez vos images panoramiques dans le répertoire `data/streetview/` :
 ```bash
 mkdir -p data/streetview
 # Copiez vos images panoramiques ici
-```
-```bash
-mkdir -p data/streetview
-# Copiez vos images panoramiques ici
 # Ou utilisez des outils comme streetget: https://www.di.ens.fr/willow/research/streetget/
 ```
 

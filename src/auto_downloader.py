@@ -19,10 +19,21 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants
 IGN_TILE_SIZE_KM = 1.0  # IGN LiDAR tiles are 1km x 1km
+TILE_SIZE_METERS = 1000  # Tile size in meters for coordinate conversion
 TILE_GRID_PADDING = 1  # Additional tiles to check beyond calculated radius
 MAX_FAILED_ATTEMPTS = 10  # Stop searching after this many consecutive failures
 ATTEMPT_MULTIPLIER = 3  # Try this many times the desired tile count
 REQUEST_DELAY_SECONDS = 0.5  # Delay between requests to avoid hammering server
+
+# Approximate coordinate conversion constants (for fallback when pyproj unavailable)
+# These are rough approximations for France only and should not be used for precise work
+# Based on approximate center of France (lon ~2.5°E, lat ~46.5°N)
+LAMBERT93_APPROX_TILE_X_OFFSET = 600  # Approximate X tile offset
+LAMBERT93_APPROX_TILE_Y_OFFSET = 6800  # Approximate Y tile offset
+LAMBERT93_APPROX_LON_REF = 2.5  # Reference longitude for approximation (degrees)
+LAMBERT93_APPROX_LAT_REF = 46.5  # Reference latitude for approximation (degrees)
+LAMBERT93_APPROX_LON_SCALE = 100  # Tile offset per degree longitude (rough)
+LAMBERT93_APPROX_LAT_SCALE = 110  # Tile offset per degree latitude (rough)
 
 
 class IGNLidarDownloader:
@@ -60,8 +71,8 @@ class IGNLidarDownloader:
             x_lambert, y_lambert = transformer.transform(lon, lat)
             
             # IGN tiles are 1km x 1km, named by lower-left corner in km
-            tile_x = int(x_lambert / 1000)
-            tile_y = int(y_lambert / 1000)
+            tile_x = int(x_lambert / TILE_SIZE_METERS)
+            tile_y = int(y_lambert / TILE_SIZE_METERS)
             
             logger.info(f"Lambert 93 coordinates: X={x_lambert:.2f}, Y={y_lambert:.2f}")
             logger.info(f"Tile coordinates: X={tile_x}, Y={tile_y}")
@@ -69,14 +80,14 @@ class IGNLidarDownloader:
         except ImportError:
             logger.warning("pyproj not installed, using approximate coordinates")
             logger.warning("Install pyproj for accurate coordinate conversion: pip install pyproj")
-            # Rough approximation for France
-            tile_x = 600 + int((lon - 2.5) * 100)
-            tile_y = 6800 + int((lat - 46.5) * 110)
+            # Rough approximation for France (NOT accurate for precise work)
+            tile_x = LAMBERT93_APPROX_TILE_X_OFFSET + int((lon - LAMBERT93_APPROX_LON_REF) * LAMBERT93_APPROX_LON_SCALE)
+            tile_y = LAMBERT93_APPROX_TILE_Y_OFFSET + int((lat - LAMBERT93_APPROX_LAT_REF) * LAMBERT93_APPROX_LAT_SCALE)
         except Exception as e:
             logger.error(f"Error converting coordinates: {e}")
             logger.warning("Using approximate coordinates")
-            tile_x = 600 + int((lon - 2.5) * 100)
-            tile_y = 6800 + int((lat - 46.5) * 110)
+            tile_x = LAMBERT93_APPROX_TILE_X_OFFSET + int((lon - LAMBERT93_APPROX_LON_REF) * LAMBERT93_APPROX_LON_SCALE)
+            tile_y = LAMBERT93_APPROX_TILE_Y_OFFSET + int((lat - LAMBERT93_APPROX_LAT_REF) * LAMBERT93_APPROX_LAT_SCALE)
         
         # Try to download tiles in the area
         radius_km = self.location.get('radius_km', 10)
