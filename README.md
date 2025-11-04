@@ -2,7 +2,7 @@
 
 Automatic 3D city reconstruction around Rambouillet (10km radius) using LiDAR HD IGN point clouds and Street View panoramic images.
 
-**🚀 [Quick Start Guide](QUICKSTART.md)** | **📖 [Documentation en Français](README_FR.md)**
+**🚀 [Quick Start Guide](QUICKSTART.md)** | **📖 [Documentation en Français](README_FR.md)** | **📥 [Download Guide](DOWNLOAD_GUIDE.md)**
 
 ## Overview
 
@@ -10,6 +10,7 @@ This pipeline uses AI-based segmentation to filter buildings and ground from LiD
 
 ## Features
 
+- **Automatic Data Download**: Download Street View images automatically using Google API
 - **LiDAR Processing**: Load and process .copc.laz point cloud files from IGN
 - **Street View Integration**: Use panoramic images for texture mapping
 - **AI Segmentation**: Deep learning-based point cloud segmentation (ground, buildings, vegetation)
@@ -32,7 +33,25 @@ pip install -r requirements.txt
 
 ## Data Preparation
 
-### LiDAR Data
+### Option 1: Automatic Download (Recommended)
+
+Configure automatic data download:
+```bash
+python setup_download.py config
+```
+
+This will guide you through setting up:
+- Google Street View API key for automatic image download
+- Download preferences (number of images, resolution)
+
+Then run the pipeline - it will automatically download data:
+```bash
+python main.py
+```
+
+### Option 2: Manual Download
+
+#### LiDAR Data
 Place your .copc.laz files in the `data/lidar/` directory:
 ```bash
 mkdir -p data/lidar
@@ -40,10 +59,20 @@ mkdir -p data/lidar
 ```
 
 ### Street View Images
+
+**Option A: Automatic Download**
+```bash
+# Configure API key first
+python setup_download.py config
+# Then run main.py - it will download automatically
+```
+
+**Option B: Manual Download**
 Place your panoramic images in the `data/streetview/` directory:
 ```bash
 mkdir -p data/streetview
 # Copy your panoramic images here
+# Or use tools like streetget: https://www.di.ens.fr/willow/research/streetget/
 ```
 
 ## Configuration

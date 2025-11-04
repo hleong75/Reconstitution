@@ -25,7 +25,21 @@ Output will be in `output/` directory.
 
 ## Use with Real Data
 
-### Step 1: Get LiDAR Data
+### Option A: Automatic Download (Recommended for Street View)
+
+```bash
+# 1. Configure automatic download
+python setup_download.py config
+
+# 2. Run the pipeline - it will download data automatically
+python main.py
+```
+
+This requires a Google Maps API key (free tier available).
+
+### Option B: Manual Download
+
+#### Step 1: Get LiDAR Data
 
 Download LiDAR HD IGN data:
 - Visit: https://geoservices.ign.fr/lidarhd
@@ -33,10 +47,18 @@ Download LiDAR HD IGN data:
 - Download .copc.laz files
 - Place in `data/lidar/`
 
-### Step 2: Get Street View Images
+#### Step 2: Get Street View Images
 
+**Automatic:**
+```bash
+python setup_download.py config  # Configure API key
+python main.py  # Downloads automatically
+```
+
+**Manual:**
 Collect panoramic images:
 - Use Google Street View or similar
+- Or use streetget tool: https://www.di.ens.fr/willow/research/streetget/
 - Save as JPG or PNG
 - Ideally with GPS EXIF data
 - Place in `data/streetview/`

@@ -65,3 +65,21 @@ output:
   include_materials: true
   coordinate_system: "WGS84"
   export_lod: [1, 2, 3]  # Level of detail variations
+
+# Automatic data download configuration
+download:
+  # Enable/disable automatic downloads
+  enable_lidar: false  # Set to true to enable automatic LiDAR download
+  enable_streetview: false  # Set to true to enable automatic Street View download
+  
+  # Google Street View API configuration
+  # Get your API key from: https://console.cloud.google.com/
+  google_api_key: ""  # Add your Google Maps API key here
+  streetview_size: "2048x1024"  # Image resolution
+  streetview_num_samples: 50  # Number of Street View images to download
+  
+  # IGN LiDAR configuration
+  lidar_url: "https://wxs.ign.fr/decouverte/telechargement/prepackage/LIDARHD_PACK_"
+  
+  # Note: For Street View download, refer to:
+  # https://www.di.ens.fr/willow/research/streetget/

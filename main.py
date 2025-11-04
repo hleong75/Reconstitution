@@ -15,6 +15,7 @@ from src.segmentation import AISegmentation
 from src.mesh_generator import MeshGenerator
 from src.texture_mapper import TextureMapper
 from src.exporter import ModelExporter
+from src.data_downloader import DataDownloader
 
 
 class ReconstitutionPipeline:
@@ -32,6 +33,7 @@ class ReconstitutionPipeline:
         self._setup_directories()
         
         # Initialize pipeline components
+        self.data_downloader = DataDownloader(self.config)
         self.lidar_processor = LiDARProcessor(self.config)
         self.streetview_processor = StreetViewProcessor(self.config)
         self.segmentation = AISegmentation(self.config)
@@ -70,11 +72,27 @@ class ReconstitutionPipeline:
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
     
-    def run(self):
-        """Execute the complete reconstruction pipeline"""
+    def run(self, auto_download=True):
+        """
+        Execute the complete reconstruction pipeline
+        
+        Args:
+            auto_download: Whether to automatically download data if enabled in config
+        """
         self.logger.info("Starting 3D reconstruction pipeline")
         
         try:
+            # Step 0: Download data if auto-download is enabled
+            if auto_download:
+                download_config = self.config.get('download', {})
+                if download_config.get('enable_lidar') or download_config.get('enable_streetview'):
+                    self.logger.info("Step 0: Downloading data automatically")
+                    lidar_ok, streetview_ok = self.data_downloader.download_all()
+                    if not lidar_ok and download_config.get('enable_lidar'):
+                        self.logger.warning("LiDAR download incomplete, continuing with existing data")
+                    if not streetview_ok and download_config.get('enable_streetview'):
+                        self.logger.warning("Street View download incomplete, continuing with existing data")
+            
             # Step 1: Load and process LiDAR point clouds
             self.logger.info("Step 1: Processing LiDAR point clouds")
             point_cloud = self.lidar_processor.load_and_process()

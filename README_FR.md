@@ -8,6 +8,7 @@ Ce pipeline utilise la segmentation basée sur l'IA pour filtrer les bâtiments 
 
 ## Fonctionnalités
 
+- **Téléchargement Automatique de Données** : Téléchargement automatique d'images Street View via l'API Google
 - **Traitement LiDAR** : Chargement et traitement des fichiers de nuages de points .copc.laz de l'IGN
 - **Intégration Street View** : Utilisation d'images panoramiques pour le mappage de textures
 - **Segmentation IA** : Segmentation de nuages de points basée sur l'apprentissage profond (sol, bâtiments, végétation)
@@ -35,7 +36,25 @@ python setup.py
 
 ## Préparation des Données
 
-### Données LiDAR
+### Option 1: Téléchargement Automatique (Recommandé)
+
+Configurez le téléchargement automatique des données :
+```bash
+python setup_download.py config
+```
+
+Cela vous guidera pour configurer :
+- Clé API Google Street View pour le téléchargement automatique d'images
+- Préférences de téléchargement (nombre d'images, résolution)
+
+Ensuite, exécutez le pipeline - il téléchargera automatiquement les données :
+```bash
+python main.py
+```
+
+### Option 2: Téléchargement Manuel
+
+#### Données LiDAR
 Placez vos fichiers .copc.laz dans le répertoire `data/lidar/` :
 ```bash
 mkdir -p data/lidar
@@ -48,10 +67,20 @@ mkdir -p data/lidar
 - Système de coordonnées : Lambert 93
 
 ### Images Street View
+
+**Option A: Téléchargement Automatique**
+```bash
+# Configurez d'abord la clé API
+python setup_download.py config
+# Puis exécutez main.py - il téléchargera automatiquement
+```
+
+**Option B: Téléchargement Manuel**
 Placez vos images panoramiques dans le répertoire `data/streetview/` :
 ```bash
 mkdir -p data/streetview
 # Copiez vos images panoramiques ici
+# Ou utilisez des outils comme streetget: https://www.di.ens.fr/willow/research/streetget/
 ```
 
 **Recommandations pour les images :**
@@ -202,6 +231,7 @@ Les poids pré-entraînés peuvent être placés dans `models/segmentation_weigh
 
 ## Documentation Supplémentaire
 
+- **DOWNLOAD_GUIDE.md** - Guide de téléchargement automatique (en anglais)
 - **USAGE.md** - Guide d'utilisation détaillé (en anglais)
 - **ARCHITECTURE.md** - Vue d'ensemble de l'architecture (en anglais)
 - **EXAMPLES.md** - Exemples de configurations (en anglais)
