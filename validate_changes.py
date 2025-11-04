@@ -49,9 +49,19 @@ def test_config_yaml():
     with open('config.yaml', 'r') as f:
         content = f.read()
     
-    # Should not have active download section with API keys
-    assert 'google_api_key' not in content or '# ' in content[max(0, content.find('google_api_key')-10):content.find('google_api_key')], \
-        "google_api_key should be removed or commented"
+    # Check if google_api_key is present and if so, verify it's commented
+    def is_api_key_disabled():
+        """Check if API key is absent or commented out"""
+        if 'google_api_key' not in content:
+            return True  # API key section removed entirely
+        
+        # Find the line with google_api_key
+        api_key_pos = content.find('google_api_key')
+        # Check if it's commented (# appears in the 10 characters before it)
+        prefix = content[max(0, api_key_pos - 10):api_key_pos]
+        return '#' in prefix
+    
+    assert is_api_key_disabled(), "google_api_key should be removed or commented"
     
     # Should have manual download instructions
     assert 'manually download' in content.lower() or 'manual download' in content.lower(), \
@@ -135,9 +145,12 @@ def test_documentation():
     assert '"""' in main_code, "main.py should have docstrings"
     assert '"""' in texture_code, "texture_mapper.py should have docstrings"
     
-    # Check for parameter documentation
-    assert 'Args:' in main_code, "Should document arguments"
-    assert 'Returns:' in texture_code, "Should document returns"
+    # Check for parameter documentation (simplified logic)
+    has_args_doc = 'Args:' in main_code
+    has_returns_doc = 'Returns:' in texture_code
+    
+    assert has_args_doc, "Should document arguments"
+    assert has_returns_doc, "Should document returns"
     
     print("✓ Documentation is present")
     return True

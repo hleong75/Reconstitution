@@ -7,6 +7,12 @@ from typing import Dict, Any, List, Tuple
 import logging
 
 
+# Constants for image cleaning thresholds
+GROUND_LEVEL_THRESHOLD = 0.4  # Top 40% of image is sky/buildings, bottom 60% is ground
+VERTICAL_FOCUS_THRESHOLD = 0.5  # Focus on bottom 50% for vertical objects
+BLUR_PERCENTILE_THRESHOLD = 25  # Lower 25% variance indicates blur
+
+
 class TextureMapper:
     """Apply textures to 3D meshes from Street View images with intelligent cleanup"""
     
@@ -164,7 +170,7 @@ class TextureMapper:
         mask[bright_low_sat & high_variance] = 255
         
         # Only consider lower 60% of image (ground level where cars are)
-        mask[: int(height * 0.4), :] = 0
+        mask[: int(height * GROUND_LEVEL_THRESHOLD), :] = 0
         
         return mask
     
@@ -194,7 +200,7 @@ class TextureMapper:
         mask[strong_vertical] = 255
         
         # Focus on lower portion of image (ground level)
-        mask[: int(height * 0.5), :] = 0
+        mask[: int(height * VERTICAL_FOCUS_THRESHOLD), :] = 0
         
         # Remove small isolated regions
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 10))
@@ -222,7 +228,7 @@ class TextureMapper:
         local_var = cv2.filter2D(laplacian ** 2, -1, kernel)
         
         # Global threshold for blur detection
-        threshold = np.percentile(local_var, 25)  # Lower 25% are considered blurred
+        threshold = np.percentile(local_var, BLUR_PERCENTILE_THRESHOLD)
         
         mask = np.zeros_like(gray, dtype=np.uint8)
         mask[local_var < threshold] = 255
