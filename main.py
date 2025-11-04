@@ -4,8 +4,10 @@ Main entry point for the reconstruction process
 """
 
 import os
+import sys
 import yaml
 import logging
+import argparse
 from typing import Dict, Any
 from pathlib import Path
 
@@ -15,25 +17,32 @@ from src.segmentation import AISegmentation
 from src.mesh_generator import MeshGenerator
 from src.texture_mapper import TextureMapper
 from src.exporter import ModelExporter
-from src.data_downloader import DataDownloader
 
 
 class ReconstitutionPipeline:
     """Main pipeline for 3D city reconstruction"""
     
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", city: str = None, radius_km: float = None):
         """
         Initialize the reconstruction pipeline
         
         Args:
             config_path: Path to configuration file
+            city: City name (optional, overrides config)
+            radius_km: Radius in kilometers (optional, overrides config)
         """
         self.config = self._load_config(config_path)
+        
+        # Override config with command-line parameters if provided
+        if city is not None:
+            self.config['location']['name'] = city
+        if radius_km is not None:
+            self.config['location']['radius_km'] = radius_km
+            
         self._setup_logging()
         self._setup_directories()
         
-        # Initialize pipeline components
-        self.data_downloader = DataDownloader(self.config)
+        # Initialize pipeline components (no data downloader - no API usage)
         self.lidar_processor = LiDARProcessor(self.config)
         self.streetview_processor = StreetViewProcessor(self.config)
         self.segmentation = AISegmentation(self.config)
@@ -41,7 +50,8 @@ class ReconstitutionPipeline:
         self.texture_mapper = TextureMapper(self.config)
         self.exporter = ModelExporter(self.config)
         
-        self.logger.info("Reconstitution pipeline initialized")
+        self.logger.info(f"Reconstitution pipeline initialized for {self.config['location']['name']}")
+        self.logger.info(f"Radius: {self.config['location']['radius_km']} km")
     
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -72,27 +82,14 @@ class ReconstitutionPipeline:
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
     
-    def run(self, auto_download=True):
+    def run(self):
         """
         Execute the complete reconstruction pipeline
-        
-        Args:
-            auto_download: Whether to automatically download data if enabled in config
         """
         self.logger.info("Starting 3D reconstruction pipeline")
+        self.logger.info("Note: API usage has been disabled. Please ensure data is manually available.")
         
         try:
-            # Step 0: Download data if auto-download is enabled
-            if auto_download:
-                download_config = self.config.get('download', {})
-                if download_config.get('enable_lidar') or download_config.get('enable_streetview'):
-                    self.logger.info("Step 0: Downloading data automatically")
-                    lidar_ok, streetview_ok = self.data_downloader.download_all()
-                    if not lidar_ok and download_config.get('enable_lidar'):
-                        self.logger.warning("LiDAR download incomplete, continuing with existing data")
-                    if not streetview_ok and download_config.get('enable_streetview'):
-                        self.logger.warning("Street View download incomplete, continuing with existing data")
-            
             # Step 1: Load and process LiDAR point clouds
             self.logger.info("Step 1: Processing LiDAR point clouds")
             point_cloud = self.lidar_processor.load_and_process()
@@ -134,8 +131,33 @@ class ReconstitutionPipeline:
 
 def main():
     """Main entry point"""
-    pipeline = ReconstitutionPipeline()
-    pipeline.run()
+    parser = argparse.ArgumentParser(
+        description='3D City Reconstruction Pipeline',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py --city "Rambouillet" --radius 10
+  python main.py --city "Paris" --radius 5 --config custom_config.yaml
+        """
+    )
+    
+    parser.add_argument('--city', type=str, help='City name for reconstruction')
+    parser.add_argument('--radius', type=float, help='Radius in kilometers')
+    parser.add_argument('--config', type=str, default='config.yaml', 
+                       help='Path to configuration file (default: config.yaml)')
+    
+    args = parser.parse_args()
+    
+    try:
+        pipeline = ReconstitutionPipeline(
+            config_path=args.config,
+            city=args.city,
+            radius_km=args.radius
+        )
+        pipeline.run()
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
