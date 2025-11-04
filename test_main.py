@@ -366,6 +366,132 @@ def test_robustness_invalid_images():
         return False
 
 
+def test_city_name_validation():
+    """Test that city names with special characters are handled"""
+    print("Testing city name validation...")
+    
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    
+    from main import ReconstitutionPipeline
+    
+    # Create temporary config
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        temp_config = f.name
+        config = {
+            'location': {
+                'name': 'Test',
+                'center_lat': 48.0,
+                'center_lon': 2.0,
+                'radius_km': 1.0
+            },
+            'input': {
+                'lidar': {'path': 'data/lidar/', 'format': 'copc.laz', 'voxel_size': 0.05, 'min_points_per_voxel': 10},
+                'streetview': {'path': 'data/streetview/', 'format': ['jpg', 'png'], 'resolution': [2048, 1024]}
+            },
+            'processing': {
+                'segmentation': {'model': 'pointnet', 'weights_path': 'models/weights.pth', 
+                               'classes': ['ground', 'building'], 'confidence_threshold': 0.7},
+                'ground_filter': {'method': 'cloth_simulation', 'rigidness': 3, 'class_threshold': 0.5},
+                'building_extraction': {'min_height': 2.5, 'min_points': 100, 'cluster_tolerance': 0.5}
+            },
+            'mesh_generation': {
+                'method': 'poisson', 'poisson_depth': 9, 'poisson_scale': 1.1, 'simplification_ratio': 0.9
+            },
+            'texture_mapping': {
+                'method': 'projection', 'resolution': 2048, 'use_streetview': True, 'interpolation': 'bilinear'
+            },
+            'output': {
+                'format': '3ds', 'path': 'output/', 'filename': 'test_model',
+                'include_materials': True, 'coordinate_system': 'WGS84', 'export_lod': [1, 2, 3]
+            }
+        }
+        yaml.dump(config, f)
+    
+    try:
+        # Test with city names containing special characters
+        special_cities = [
+            "Saint-Étienne",
+            "Aix-en-Provence",
+            "L'Haÿ-les-Roses"
+        ]
+        
+        for city in special_cities:
+            pipeline = ReconstitutionPipeline(
+                config_path=temp_config,
+                city=city,
+                radius_km=5.0
+            )
+            assert pipeline.config['location']['name'] == city, f"City name {city} not set correctly"
+        
+        print("✓ City names with special characters handled correctly")
+        return True
+        
+    finally:
+        Path(temp_config).unlink()
+
+
+def test_radius_boundary_values():
+    """Test radius with boundary values"""
+    print("Testing radius boundary values...")
+    
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    
+    from main import ReconstitutionPipeline
+    
+    # Create temporary config
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        temp_config = f.name
+        config = {
+            'location': {
+                'name': 'Test',
+                'center_lat': 48.0,
+                'center_lon': 2.0,
+                'radius_km': 1.0
+            },
+            'input': {
+                'lidar': {'path': 'data/lidar/', 'format': 'copc.laz', 'voxel_size': 0.05, 'min_points_per_voxel': 10},
+                'streetview': {'path': 'data/streetview/', 'format': ['jpg', 'png'], 'resolution': [2048, 1024]}
+            },
+            'processing': {
+                'segmentation': {'model': 'pointnet', 'weights_path': 'models/weights.pth', 
+                               'classes': ['ground', 'building'], 'confidence_threshold': 0.7},
+                'ground_filter': {'method': 'cloth_simulation', 'rigidness': 3, 'class_threshold': 0.5},
+                'building_extraction': {'min_height': 2.5, 'min_points': 100, 'cluster_tolerance': 0.5}
+            },
+            'mesh_generation': {
+                'method': 'poisson', 'poisson_depth': 9, 'poisson_scale': 1.1, 'simplification_ratio': 0.9
+            },
+            'texture_mapping': {
+                'method': 'projection', 'resolution': 2048, 'use_streetview': True, 'interpolation': 'bilinear'
+            },
+            'output': {
+                'format': '3ds', 'path': 'output/', 'filename': 'test_model',
+                'include_materials': True, 'coordinate_system': 'WGS84', 'export_lod': [1, 2, 3]
+            }
+        }
+        yaml.dump(config, f)
+    
+    try:
+        # Test with various radius values
+        test_radii = [0.1, 1.0, 5.5, 10.0, 50.0, 100.0]
+        
+        for radius in test_radii:
+            pipeline = ReconstitutionPipeline(
+                config_path=temp_config,
+                city='TestCity',
+                radius_km=radius
+            )
+            assert pipeline.config['location']['radius_km'] == radius, f"Radius {radius} not set correctly"
+        
+        print("✓ Radius boundary values handled correctly")
+        return True
+        
+    finally:
+        Path(temp_config).unlink()
+
+
 def run_all_tests():
     """Run all tests"""
     print("=" * 70)
@@ -386,6 +512,8 @@ def run_all_tests():
         test_image_cleaning_pipeline,
         test_robustness_empty_inputs,
         test_robustness_invalid_images,
+        test_city_name_validation,
+        test_radius_boundary_values,
     ]
     
     results = []
