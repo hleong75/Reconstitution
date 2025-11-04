@@ -310,13 +310,25 @@ class DataDownloader:
             response = requests.get(image_url, timeout=30)
             response.raise_for_status()
             
+            # Save downloaded image
+            # Note: response.content contains only JPEG image data, not API credentials
+            # The API key was used in the request URL but is not present in the response
+            image_data = response.content
             with open(output_file, 'wb') as f:
-                f.write(response.content)
+                f.write(image_data)
             
-            # Also save metadata
+            # Save metadata (sanitized - remove any sensitive data)
             metadata_file = output_path / f"streetview_{index:04d}_{lat:.6f}_{lon:.6f}.json"
+            # Create a sanitized copy of metadata without any potential sensitive fields
+            sanitized_metadata = {
+                'location': metadata.get('location'),
+                'date': metadata.get('date'),
+                'pano_id': metadata.get('pano_id'),
+                'status': metadata.get('status'),
+                'copyright': metadata.get('copyright')
+            }
             with open(metadata_file, 'w') as f:
-                json.dump(metadata, f, indent=2)
+                json.dump(sanitized_metadata, f, indent=2)
             
             self.logger.debug(f"Downloaded {output_file.name}")
             return True
