@@ -17,6 +17,13 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
+# Configuration constants
+IGN_TILE_SIZE_KM = 1.0  # IGN LiDAR tiles are 1km x 1km
+TILE_GRID_PADDING = 1  # Additional tiles to check beyond calculated radius
+MAX_FAILED_ATTEMPTS = 10  # Stop searching after this many consecutive failures
+ATTEMPT_MULTIPLIER = 3  # Try this many times the desired tile count
+REQUEST_DELAY_SECONDS = 0.5  # Delay between requests to avoid hammering server
+
 
 class IGNLidarDownloader:
     """
@@ -79,7 +86,7 @@ class IGNLidarDownloader:
         # Calculate number of tiles needed
         # Get max tiles from config, default to 5 for safety
         max_tiles = self.config.get('download', {}).get('max_lidar_tiles', 5)
-        tiles_per_side = min(max_tiles, max(1, int(radius_km / 1.0)))
+        tiles_per_side = min(max_tiles, max(1, int(radius_km / IGN_TILE_SIZE_KM)))
         
         logger.info(f"Searching for LiDAR tiles in {radius_km}km radius (max {max_tiles} tiles)...")
         
@@ -96,7 +103,7 @@ class IGNLidarDownloader:
         tiles_to_try.sort()
         
         # Limit number of attempts to avoid excessive waiting
-        max_attempts = min(max_tiles * 3, len(tiles_to_try))  # Try 3x the desired tiles
+        max_attempts = min(max_tiles * ATTEMPT_MULTIPLIER, len(tiles_to_try))
         
         for dist, dx, dy in tiles_to_try[:max_attempts]:
             tx = tile_x + dx
@@ -110,7 +117,7 @@ class IGNLidarDownloader:
                 
             # Small delay to avoid hammering the server
             if tiles_attempted < max_attempts:
-                time.sleep(0.5)
+                time.sleep(REQUEST_DELAY_SECONDS)
             
             # Stop if we have enough tiles
             if tiles_downloaded >= max_tiles:
@@ -118,7 +125,7 @@ class IGNLidarDownloader:
                 break
             
             # Early exit if many consecutive failures
-            if tiles_attempted >= 10 and tiles_downloaded == 0:
+            if tiles_attempted >= MAX_FAILED_ATTEMPTS and tiles_downloaded == 0:
                 logger.warning(f"No tiles found after {tiles_attempted} attempts, stopping search")
                 break
         

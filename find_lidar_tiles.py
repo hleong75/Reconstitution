@@ -8,6 +8,21 @@ import sys
 import yaml
 import argparse
 
+# Configuration constants
+IGN_TILE_SIZE_KM = 1.0  # IGN LiDAR tiles are 1km x 1km
+TILE_SIZE_METERS = 1000  # Tile size in meters for coordinate conversion
+TILE_GRID_PADDING = 1  # Additional tiles to check beyond calculated radius
+
+# Approximate coordinate conversion constants (for fallback when pyproj unavailable)
+# These are rough approximations for France only and should not be used for precise work
+# Based on approximate center of France (lon ~2.5°E, lat ~46.5°N)
+LAMBERT93_APPROX_X_OFFSET = 600000  # Approximate X offset in meters
+LAMBERT93_APPROX_Y_OFFSET = 6800000  # Approximate Y offset in meters
+LAMBERT93_APPROX_LON_REF = 2.5  # Reference longitude for approximation
+LAMBERT93_APPROX_LAT_REF = 46.5  # Reference latitude for approximation
+LAMBERT93_APPROX_LON_SCALE = 100000  # Meters per degree longitude (rough)
+LAMBERT93_APPROX_LAT_SCALE = 110000  # Meters per degree latitude (rough)
+
 
 def wgs84_to_lambert93(lat, lon):
     """
@@ -29,8 +44,9 @@ def wgs84_to_lambert93(lat, lon):
         print("Warning: pyproj not installed, using approximate conversion")
         print("Install pyproj for accurate results: pip install pyproj")
         # Very rough approximation for France only
-        x = 600000 + (lon - 2.5) * 100000
-        y = 6800000 + (lat - 46.5) * 110000
+        # NOT accurate for precise work - install pyproj for real conversions
+        x = LAMBERT93_APPROX_X_OFFSET + (lon - LAMBERT93_APPROX_LON_REF) * LAMBERT93_APPROX_LON_SCALE
+        y = LAMBERT93_APPROX_Y_OFFSET + (lat - LAMBERT93_APPROX_LAT_REF) * LAMBERT93_APPROX_LAT_SCALE
         return x, y
 
 
@@ -50,11 +66,11 @@ def get_tiles_for_location(lat, lon, radius_km=10):
     x, y = wgs84_to_lambert93(lat, lon)
     
     # Tiles are 1km x 1km, named by lower-left corner in km
-    center_tile_x = int(x / 1000)
-    center_tile_y = int(y / 1000)
+    center_tile_x = int(x / TILE_SIZE_METERS)
+    center_tile_y = int(y / TILE_SIZE_METERS)
     
     # Calculate tiles in radius
-    tiles_per_side = int(radius_km / 1.0) + 1
+    tiles_per_side = int(radius_km / IGN_TILE_SIZE_KM) + TILE_GRID_PADDING
     tiles = []
     
     for dx in range(-tiles_per_side, tiles_per_side + 1):
