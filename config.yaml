@@ -1,62 +1,104 @@
-download:
-  enable_lidar: false
-  enable_streetview: false
-  mapillary_token: ''
-  max_images: 50
-input:
-  lidar:
-    format: ply
-    min_points_per_voxel: 10
-    path: data/lidar/
-    voxel_size: 0.05
-  streetview:
-    format:
-    - jpg
-    - png
-    path: data/streetview/
-    resolution:
-    - 2048
-    - 1024
+# Configuration for 3D reconstruction around Rambouillet
 location:
+  name: "Rambouillet"
+  # Coordinates of Rambouillet center (latitude, longitude)
   center_lat: 48.6439
   center_lon: 1.8294
-  name: Rambouillet
+  # Radius in kilometers
   radius_km: 10
+
+# Automatic data download configuration
+# Uses FREE public data sources (no paid APIs required)
+download:
+  # Enable automatic download of LiDAR data from IGN
+  enable_lidar: true
+  # Enable automatic download of Street View images
+  enable_streetview: true
+  # Maximum number of images to download
+  max_images: 50
+  # Maximum number of LiDAR tiles to download (1 tile = 1km²)
+  # Increase this for larger areas, but be respectful of server load
+  max_lidar_tiles: 5
+  # Mapillary API token (free, get at https://www.mapillary.com/developer)
+  # Mapillary provides free street-level imagery as an alternative to Google Street View
+  # SECURITY WARNING: Keep your token private! Add config.yaml to .gitignore if sharing code
+  mapillary_token: ""  # Add your token here if using Mapillary
+
+input:
+  # LiDAR point cloud data
+  lidar:
+    format: "copc.laz"  # Supports: copc.laz, laz, las, ply, pcd
+    path: "data/lidar/"
+    # Point cloud processing parameters
+    voxel_size: 0.05  # meters
+    min_points_per_voxel: 10
+  
+  # Street View panoramic images
+  streetview:
+    path: "data/streetview/"
+    format: ["jpg", "png"]
+    resolution: [2048, 1024]
+
+processing:
+  # AI model for segmentation
+  segmentation:
+    model: "pointnet"  # or "dgcnn", "randlanet"
+    weights_path: "models/segmentation_weights.pth"
+    classes:
+      - "ground"
+      - "building"
+      - "vegetation"
+      - "other"
+    confidence_threshold: 0.7
+  
+  # Ground filtering
+  ground_filter:
+    method: "cloth_simulation"  # CSF algorithm
+    rigidness: 3
+    class_threshold: 0.5
+  
+  # Building extraction
+  building_extraction:
+    min_height: 2.5  # meters
+    min_points: 100
+    cluster_tolerance: 0.5
+
 mesh_generation:
-  method: poisson
+  method: "poisson"  # or "ball_pivoting", "alpha_shape"
   poisson_depth: 9
   poisson_scale: 1.1
   simplification_ratio: 0.9
-output:
-  coordinate_system: WGS84
-  export_lod:
-  - 1
-  - 2
-  - 3
-  filename: rambouillet_3d_model
-  format: 3ds
-  include_materials: true
-  path: output/
-processing:
-  building_extraction:
-    cluster_tolerance: 0.5
-    min_height: 2.5
-    min_points: 100
-  ground_filter:
-    class_threshold: 0.5
-    method: cloth_simulation
-    rigidness: 3
-  segmentation:
-    classes:
-    - ground
-    - building
-    - vegetation
-    - other
-    confidence_threshold: 0.7
-    model: pointnet
-    weights_path: models/segmentation_weights.pth
+  
 texture_mapping:
-  interpolation: bilinear
-  method: projection
+  method: "projection"
   resolution: 2048
   use_streetview: true
+  interpolation: "bilinear"
+
+output:
+  format: "3ds"
+  path: "output/"
+  filename: "rambouillet_3d_model"
+  include_materials: true
+  coordinate_system: "WGS84"
+  export_lod: [1, 2, 3]  # Level of detail variations
+
+# ============================================================================
+# Data Download Information
+# ============================================================================
+# This program uses FREE public data sources without paid APIs:
+#
+# 1. LiDAR Data:
+#    - Source: IGN Géoportail (France's National Geographic Institute)
+#    - Free public access to LiDAR HD point clouds
+#    - Automatic download: Enabled by default
+#    - Manual download: https://geoservices.ign.fr/lidarhd
+#
+# 2. Street View Images:
+#    - Source: Mapillary (free alternative to Google Street View)
+#    - Community-contributed street-level imagery
+#    - Requires free API token from https://www.mapillary.com/developer
+#    - Automatic download: Enabled when token is configured
+#
+# No Google APIs or paid services are used!
+# ============================================================================

@@ -145,12 +145,18 @@ class AISegmentation:
         pcd.colors = o3d.utility.Vector3dVector(colors)
         
         # Store labels and point cloud for extraction methods
+        # Note: This stores references for extraction. Clear with clear_cache() if needed for memory.
         self._last_predictions = predictions
         self._last_point_cloud = pcd
         
         self.logger.info(f"Segmented {len(points)} points into {len(self.seg_config['classes'])} classes")
         
         return pcd
+    
+    def clear_cache(self):
+        """Clear cached predictions and point cloud to free memory"""
+        self._last_predictions = None
+        self._last_point_cloud = None
     
     def _simple_height_segmentation(self, points: np.ndarray) -> np.ndarray:
         """

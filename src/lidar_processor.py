@@ -36,15 +36,16 @@ class LiDARProcessor:
         # Support multiple file formats
         supported_formats = ['laz', 'las', 'ply', 'pcd']
         point_cloud_files = []
+        seen_files = set()
         
         # Get configured format first
         config_format = self.lidar_config.get('format', 'copc.laz')
         for fmt in [config_format] + supported_formats:
             files = list(lidar_path.glob(f"*.{fmt}"))
-            point_cloud_files.extend(files)
-        
-        # Remove duplicates
-        point_cloud_files = list(set(point_cloud_files))
+            for f in files:
+                if f not in seen_files:
+                    point_cloud_files.append(f)
+                    seen_files.add(f)
         
         if not point_cloud_files:
             self.logger.warning(f"No point cloud files found in {lidar_path}")

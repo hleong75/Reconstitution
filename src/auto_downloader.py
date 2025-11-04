@@ -70,6 +70,8 @@ class IGNLidarDownloader:
         tiles_downloaded = 0
         
         # Calculate number of tiles needed
+        # Get max tiles from config, default to 5 for safety
+        max_tiles = self.config.get('download', {}).get('max_lidar_tiles', 5)
         tiles_per_side = max(1, int(radius_km / 1.0) + 1)
         
         for dx in range(-tiles_per_side, tiles_per_side + 1):
@@ -84,11 +86,11 @@ class IGNLidarDownloader:
                 # Don't hammer the server
                 time.sleep(1)
                 
-                # Limit downloads for demo
-                if tiles_downloaded >= 5:
-                    logger.info("Downloaded 5 tiles, stopping (adjust if needed)")
+                # Limit downloads based on config
+                if tiles_downloaded >= max_tiles:
+                    logger.info(f"Downloaded {max_tiles} tiles (max configured)")
                     break
-            if tiles_downloaded >= 5:
+            if tiles_downloaded >= max_tiles:
                 break
         
         logger.info(f"Downloaded {tiles_downloaded} LiDAR tiles")
