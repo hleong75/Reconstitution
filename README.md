@@ -32,7 +32,25 @@ pip install -r requirements.txt
 
 ## Data Preparation
 
-### LiDAR Data
+### Option 1: Automatic Download (Recommended)
+
+Configure automatic data download:
+```bash
+python setup_download.py config
+```
+
+This will guide you through setting up:
+- Google Street View API key for automatic image download
+- Download preferences (number of images, resolution)
+
+Then run the pipeline - it will automatically download data:
+```bash
+python main.py
+```
+
+### Option 2: Manual Download
+
+#### LiDAR Data
 Place your .copc.laz files in the `data/lidar/` directory:
 ```bash
 mkdir -p data/lidar
@@ -40,10 +58,20 @@ mkdir -p data/lidar
 ```
 
 ### Street View Images
+
+**Option A: Automatic Download**
+```bash
+# Configure API key first
+python setup_download.py config
+# Then run main.py - it will download automatically
+```
+
+**Option B: Manual Download**
 Place your panoramic images in the `data/streetview/` directory:
 ```bash
 mkdir -p data/streetview
 # Copy your panoramic images here
+# Or use tools like streetget: https://www.di.ens.fr/willow/research/streetget/
 ```
 
 ## Configuration
