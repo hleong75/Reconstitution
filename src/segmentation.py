@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 import logging
 import torch
 import torch.nn as nn
+from pathlib import Path
 
 
 class PointNetSegmentation(nn.Module):
@@ -199,6 +200,3 @@ class AISegmentation:
         self.logger.info(f"Extracted {len(ground_pcd.points)} ground points")
         
         return ground_pcd
-
-
-from pathlib import Path
