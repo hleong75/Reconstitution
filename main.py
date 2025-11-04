@@ -17,6 +17,7 @@ from src.segmentation import AISegmentation
 from src.mesh_generator import MeshGenerator
 from src.texture_mapper import TextureMapper
 from src.exporter import ModelExporter
+from src.auto_downloader import AutoDownloader
 
 
 class ReconstitutionPipeline:
@@ -42,7 +43,10 @@ class ReconstitutionPipeline:
         self._setup_logging()
         self._setup_directories()
         
-        # Initialize pipeline components (no data downloader - no API usage)
+        # Initialize automatic downloader (uses FREE public data sources, no paid APIs)
+        self.auto_downloader = AutoDownloader(self.config)
+        
+        # Initialize pipeline components
         self.lidar_processor = LiDARProcessor(self.config)
         self.streetview_processor = StreetViewProcessor(self.config)
         self.segmentation = AISegmentation(self.config)
@@ -82,14 +86,28 @@ class ReconstitutionPipeline:
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
     
-    def run(self):
+    def run(self, auto_download: bool = True):
         """
         Execute the complete reconstruction pipeline
+        
+        Args:
+            auto_download: Whether to automatically download data (default: True)
         """
         self.logger.info("Starting 3D reconstruction pipeline")
-        self.logger.info("Note: API usage has been disabled. Please ensure data is manually available.")
+        self.logger.info("Using FREE public data sources (no paid APIs)")
         
         try:
+            # Step 0: Download data if enabled
+            if auto_download:
+                download_config = self.config.get('download', {})
+                if download_config.get('enable_lidar', True) or download_config.get('enable_streetview', True):
+                    self.logger.info("Step 0: Downloading data automatically")
+                    lidar_ok, streetview_ok = self.auto_downloader.download_all()
+                    
+                    if not lidar_ok and not streetview_ok:
+                        self.logger.warning("Automatic download failed, trying with existing data")
+                        self.auto_downloader.print_manual_instructions()
+            
             # Step 1: Load and process LiDAR point clouds
             self.logger.info("Step 1: Processing LiDAR point clouds")
             point_cloud = self.lidar_processor.load_and_process()

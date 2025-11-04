@@ -72,6 +72,10 @@ class AISegmentation:
         self.logger = logging.getLogger(__name__)
         self.seg_config = config['processing']['segmentation']
         
+        # Store last predictions for extraction
+        self._last_predictions = None
+        self._last_point_cloud = None
+        
         # Initialize model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.logger.info(f"Using device: {self.device}")
@@ -96,6 +100,7 @@ class AISegmentation:
     def segment(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """
         Segment point cloud into different classes
+        Uses simple height-based segmentation as fallback when AI model fails
         
         Args:
             pcd: Input point cloud
@@ -110,30 +115,79 @@ class AISegmentation:
         
         points = np.asarray(pcd.points)
         
-        # Normalize points
-        centroid = np.mean(points, axis=0)
-        points_normalized = points - centroid
-        max_dist = np.max(np.linalg.norm(points_normalized, axis=1))
-        points_normalized = points_normalized / max_dist
-        
-        # Prepare input for model
-        points_tensor = torch.FloatTensor(points_normalized.T).unsqueeze(0).to(self.device)
-        
-        # Run segmentation
-        with torch.no_grad():
-            logits = self.model(points_tensor)
-            predictions = torch.argmax(logits, dim=1).squeeze().cpu().numpy()
+        # Try AI-based segmentation first
+        try:
+            # Normalize points
+            centroid = np.mean(points, axis=0)
+            points_normalized = points - centroid
+            max_dist = np.max(np.linalg.norm(points_normalized, axis=1))
+            if max_dist > 0:
+                points_normalized = points_normalized / max_dist
+            
+            # Prepare input for model
+            points_tensor = torch.FloatTensor(points_normalized.T).unsqueeze(0).to(self.device)
+            
+            # Run segmentation
+            with torch.no_grad():
+                logits = self.model(points_tensor)
+                predictions = torch.argmax(logits, dim=1).squeeze().cpu().numpy()
+            
+            self.logger.info("Using AI-based segmentation")
+            
+        except Exception as e:
+            # Fallback to simple height-based segmentation
+            self.logger.warning(f"AI segmentation failed: {str(e)}")
+            self.logger.info("Using fallback height-based segmentation")
+            predictions = self._simple_height_segmentation(points)
         
         # Color code by class
         colors = self._get_class_colors(predictions)
         pcd.colors = o3d.utility.Vector3dVector(colors)
         
-        # Store labels as custom attribute
-        pcd.labels = predictions
+        # Store labels and point cloud for extraction methods
+        # Note: This stores references for extraction. Clear with clear_cache() if needed for memory.
+        self._last_predictions = predictions
+        self._last_point_cloud = pcd
         
         self.logger.info(f"Segmented {len(points)} points into {len(self.seg_config['classes'])} classes")
         
         return pcd
+    
+    def clear_cache(self):
+        """Clear cached predictions and point cloud to free memory"""
+        self._last_predictions = None
+        self._last_point_cloud = None
+    
+    def _simple_height_segmentation(self, points: np.ndarray) -> np.ndarray:
+        """
+        Simple height-based segmentation fallback
+        
+        Args:
+            points: Point cloud array (N, 3)
+            
+        Returns:
+            Class labels for each point
+        """
+        z_values = points[:, 2]
+        z_min = z_values.min()
+        z_max = z_values.max()
+        z_range = z_max - z_min
+        
+        labels = np.zeros(len(points), dtype=np.int32)
+        
+        # Ground: lowest 20% of points
+        ground_threshold = z_min + 0.2 * z_range
+        labels[z_values <= ground_threshold] = 0  # ground
+        
+        # Buildings: mid-range heights (20%-80%)
+        building_threshold = z_min + 0.8 * z_range
+        building_mask = (z_values > ground_threshold) & (z_values < building_threshold)
+        labels[building_mask] = 1  # building
+        
+        # Vegetation/other: highest points
+        labels[z_values >= building_threshold] = 2  # vegetation
+        
+        return labels
     
     def _get_class_colors(self, labels: np.ndarray) -> np.ndarray:
         """
@@ -165,12 +219,12 @@ class AISegmentation:
         Returns:
             Point cloud containing only buildings
         """
-        if not hasattr(pcd, 'labels'):
+        if self._last_predictions is None:
             self.logger.warning("Point cloud not segmented, cannot extract buildings")
             return o3d.geometry.PointCloud()
         
         # Class 1 is buildings
-        building_mask = pcd.labels == 1
+        building_mask = self._last_predictions == 1
         
         building_pcd = pcd.select_by_index(np.where(building_mask)[0])
         
@@ -188,12 +242,12 @@ class AISegmentation:
         Returns:
             Point cloud containing only ground
         """
-        if not hasattr(pcd, 'labels'):
+        if self._last_predictions is None:
             self.logger.warning("Point cloud not segmented, cannot extract ground")
             return o3d.geometry.PointCloud()
         
         # Class 0 is ground
-        ground_mask = pcd.labels == 0
+        ground_mask = self._last_predictions == 0
         
         ground_pcd = pcd.select_by_index(np.where(ground_mask)[0])
         

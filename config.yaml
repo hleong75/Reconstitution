@@ -7,10 +7,27 @@ location:
   # Radius in kilometers
   radius_km: 10
 
+# Automatic data download configuration
+# Uses FREE public data sources (no paid APIs required)
+download:
+  # Enable automatic download of LiDAR data from IGN
+  enable_lidar: true
+  # Enable automatic download of Street View images
+  enable_streetview: true
+  # Maximum number of images to download
+  max_images: 50
+  # Maximum number of LiDAR tiles to download (1 tile = 1km²)
+  # Increase this for larger areas, but be respectful of server load
+  max_lidar_tiles: 5
+  # Mapillary API token (free, get at https://www.mapillary.com/developer)
+  # Mapillary provides free street-level imagery as an alternative to Google Street View
+  # SECURITY WARNING: Keep your token private! Add config.yaml to .gitignore if sharing code
+  mapillary_token: ""  # Add your token here if using Mapillary
+
 input:
   # LiDAR point cloud data
   lidar:
-    format: "copc.laz"
+    format: "copc.laz"  # Supports: copc.laz, laz, las, ply, pcd
     path: "data/lidar/"
     # Point cloud processing parameters
     voxel_size: 0.05  # meters
@@ -66,11 +83,22 @@ output:
   coordinate_system: "WGS84"
   export_lod: [1, 2, 3]  # Level of detail variations
 
-# Note: API usage has been disabled
-# Please manually download and place data in the appropriate directories:
-# - LiDAR data: data/lidar/
-# - Street View images: data/streetview/
-# 
-# Data sources:
-# - LiDAR HD IGN: https://geoservices.ign.fr/lidarhd
-# - Street View: Manual download or alternative tools
+# ============================================================================
+# Data Download Information
+# ============================================================================
+# This program uses FREE public data sources without paid APIs:
+#
+# 1. LiDAR Data:
+#    - Source: IGN Géoportail (France's National Geographic Institute)
+#    - Free public access to LiDAR HD point clouds
+#    - Automatic download: Enabled by default
+#    - Manual download: https://geoservices.ign.fr/lidarhd
+#
+# 2. Street View Images:
+#    - Source: Mapillary (free alternative to Google Street View)
+#    - Community-contributed street-level imagery
+#    - Requires free API token from https://www.mapillary.com/developer
+#    - Automatic download: Enabled when token is configured
+#
+# No Google APIs or paid services are used!
+# ============================================================================
