@@ -1,8 +1,3 @@
-download:
-  enable_lidar: false
-  enable_streetview: false
-  mapillary_token: ''
-  max_images: 50
 input:
   lidar:
     format: ply

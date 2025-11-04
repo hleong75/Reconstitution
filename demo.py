@@ -110,17 +110,21 @@ def run_demo():
     with open('config.yaml', 'r') as f:
         config = yaml.safe_load(f)
     
-    # Update to use PLY for demo
+    # Update to use PLY for demo and disable auto-download
     config['input']['lidar']['format'] = 'ply'
+    if 'download' not in config:
+        config['download'] = {}
+    config['download']['enable_lidar'] = False
+    config['download']['enable_streetview'] = False
     
     with open('config.yaml', 'w') as f:
-        yaml.dump(config, f)
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     
     logger.info("Running reconstruction pipeline with demo data...")
     
     try:
         pipeline = ReconstitutionPipeline()
-        output_path = pipeline.run()
+        output_path = pipeline.run(auto_download=False)  # Disable auto-download for demo
         logger.info(f"Demo completed! Output saved to: {output_path}")
     except Exception as e:
         logger.error(f"Demo failed: {str(e)}", exc_info=True)
