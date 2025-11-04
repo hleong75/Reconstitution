@@ -7,6 +7,7 @@ import torch.nn as nn
 from typing import Dict, Any, List, Tuple, Optional
 import logging
 from pathlib import Path
+from PIL import Image
 
 
 class AITextureCleaner:
@@ -129,7 +130,6 @@ class AITextureCleaner:
         # Prepare image for model
         if image.shape[2] == 3:
             # Convert RGB to PIL-like format for transforms
-            from PIL import Image
             pil_image = Image.fromarray(image.astype('uint8'))
             input_tensor = self.transforms(pil_image).unsqueeze(0).to(self.device)
         else:
@@ -185,8 +185,9 @@ class AITextureCleaner:
         # Try Navier-Stokes first (better for complex structures)
         try:
             cleaned = cv2.inpaint(image, mask, inpaint_radius, cv2.INPAINT_NS)
-        except:
+        except (cv2.error, Exception) as e:
             # Fall back to TELEA if NS fails
+            self.logger.debug(f"Navier-Stokes inpainting failed, using TELEA: {e}")
             cleaned = cv2.inpaint(image, mask, inpaint_radius, cv2.INPAINT_TELEA)
         
         return cleaned
@@ -249,6 +250,12 @@ class AITextureCleaner:
             'classes_detected': set()
         }
         
+        # Calculate total pixels once
+        total_pixels = sum(
+            img_data['image'].shape[0] * img_data['image'].shape[1]
+            for img_data in images if 'image' in img_data
+        )
+        
         for img_data in images:
             if 'image' not in img_data:
                 continue
@@ -260,14 +267,9 @@ class AITextureCleaner:
                 stats['images_with_transients'] += 1
                 stats['total_transient_pixels'] += transient_pixels
         
-        if stats['total_images'] > 0:
-            total_pixels = sum(
-                img_data['image'].shape[0] * img_data['image'].shape[1]
-                for img_data in images if 'image' in img_data
+        if stats['total_images'] > 0 and total_pixels > 0:
+            stats['avg_transient_percentage'] = (
+                stats['total_transient_pixels'] / total_pixels * 100
             )
-            if total_pixels > 0:
-                stats['avg_transient_percentage'] = (
-                    stats['total_transient_pixels'] / total_pixels * 100
-                )
         
         return stats
