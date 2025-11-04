@@ -12,6 +12,7 @@ Ce pipeline utilise la segmentation basée sur l'IA pour filtrer les bâtiments 
 - **Traitement LiDAR** : Chargement et traitement des fichiers de nuages de points .copc.laz de l'IGN
 - **Intégration Street View** : Utilisation d'images panoramiques pour le mappage de textures
 - **Segmentation IA** : Segmentation de nuages de points basée sur l'apprentissage profond (sol, bâtiments, végétation)
+- **Nettoyage de Textures IA** : Suppression automatique des éléments temporaires (voitures, personnes) des textures avec segmentation sémantique
 - **Génération de Maillage 3D** : Plusieurs algorithmes de reconstruction (Poisson, Ball Pivoting, Alpha Shape)
 - **Mappage de Textures** : Application de textures à partir d'images Street View sur les modèles 3D
 - **Multiples Formats d'Export** : .3ds, .obj, .ply, .stl

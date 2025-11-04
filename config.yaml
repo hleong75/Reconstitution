@@ -74,6 +74,12 @@ texture_mapping:
   resolution: 2048
   use_streetview: true
   interpolation: "bilinear"
+  # AI-based texture cleaning configuration
+  ai_cleaning:
+    enabled: true  # Enable AI-powered object detection and removal
+    inpaint_radius: 5  # Radius for inpainting removed objects
+    model: "deeplabv3_mobilenet_v3"  # Semantic segmentation model
+    # Objects to remove (cars, people, etc. are automatically detected)
 
 output:
   format: "3ds"
